@@ -282,7 +282,7 @@
             });
             const [httpUrl, setHttpUrl] = useState('http://192.168.7.86:1880/machines');
             const [googleSheetsUrl, setGoogleSheetsUrl] = useState('https://script.google.com/macros/s/AKfycbwaxSSrSiftaqOQjxaf7SnrXhTC2Y-AfhgqHExAbmzhtBNjmiS9woGSbhkzO_Hd4Ubc/exec');
-            const [dataMode, setDataMode] = useState('SIMULATION'); // 'SIMULATION', 'MQTT', 'HTTP', 'GOOGLE_SHEETS'
+            const [dataMode, setDataMode] = useState('GOOGLE_SHEETS'); // 'SIMULATION', 'MQTT', 'HTTP', 'GOOGLE_SHEETS'
             const [showSettings, setShowSettings] = useState(false);
 
             // Data State
@@ -579,5 +579,6 @@
         root.render(<App />);
     </script>
 </body>
+
 
 </html>
