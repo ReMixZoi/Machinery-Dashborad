@@ -1,0 +1,499 @@
+[
+    {
+        "id": "fbec14f34af4a2e8",
+        "type": "group",
+        "z": "16c6798d3e2bf35b",
+        "style": {
+            "stroke": "#999999",
+            "stroke-opacity": "1",
+            "fill": "none",
+            "fill-opacity": "1",
+            "label": true,
+            "label-position": "nw",
+            "color": "#a4a4a4"
+        },
+        "nodes": [
+            "ab4804566a8af0f4",
+            "ef5c91ba975f93d3",
+            "a41b875a8f768f80",
+            "9a27a0f902809d68",
+            "41186cc483abb2b2",
+            "37807f8fa40e7895",
+            "aefc14f632b7a052",
+            "669914942ce6514e",
+            "flow_read_node",
+            "flow_func_node",
+            "temp_read_node",
+            "temp_func_node"
+        ],
+        "x": 394,
+        "y": 219,
+        "w": 732,
+        "h": 342
+    },
+    {
+        "id": "ab4804566a8af0f4",
+        "type": "inject",
+        "z": "16c6798d3e2bf35b",
+        "g": "fbec14f34af4a2e8",
+        "name": "Fire Tank",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "1",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 510,
+        "y": 320,
+        "wires": [
+            [
+                "ef5c91ba975f93d3",
+                "flow_read_node",
+                "temp_read_node"
+            ]
+        ]
+    },
+    {
+        "id": "ef5c91ba975f93d3",
+        "type": "Ind MC Read",
+        "z": "16c6798d3e2bf35b",
+        "g": "fbec14f34af4a2e8",
+        "name": "Fire Tank",
+        "topic": "",
+        "connection": "19365867cddfcbcb",
+        "address": "D212",
+        "addressType": "str",
+        "outputFormat": 0,
+        "errorHandling": "throw",
+        "outputs": 1,
+        "x": 680,
+        "y": 320,
+        "wires": [
+            [
+                "a41b875a8f768f80"
+            ]
+        ]
+    },
+    {
+        "id": "a41b875a8f768f80",
+        "type": "function",
+        "z": "16c6798d3e2bf35b",
+        "g": "fbec14f34af4a2e8",
+        "name": "D212",
+        "func": "msg.payload = (msg.payload.D212)\n\nmsg.topic =\"tankLevel\"\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 850,
+        "y": 320,
+        "wires": [
+            [
+                "9a27a0f902809d68",
+                "41186cc483abb2b2",
+                "669914942ce6514e"
+            ]
+        ]
+    },
+    {
+        "id": "9a27a0f902809d68",
+        "type": "ui-text",
+        "z": "16c6798d3e2bf35b",
+        "g": "fbec14f34af4a2e8",
+        "group": "a7a99b7e7259405f",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "",
+        "format": "{{msg.payload}}",
+        "layout": "row-center",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#717171",
+        "wrapText": false,
+        "className": "",
+        "value": "payload",
+        "valueType": "msg",
+        "x": 1010,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "41186cc483abb2b2",
+        "type": "ui-gauge",
+        "z": "16c6798d3e2bf35b",
+        "g": "fbec14f34af4a2e8",
+        "name": "",
+        "group": "a7a99b7e7259405f",
+        "order": 1,
+        "value": "payload",
+        "valueType": "msg",
+        "width": "2",
+        "height": "6",
+        "gtype": "gauge-tank",
+        "gstyle": "needle",
+        "title": "Tank",
+        "alwaysShowTitle": false,
+        "floatingTitlePosition": "top-left",
+        "units": "units",
+        "icon": "",
+        "prefix": "",
+        "suffix": "",
+        "segments": [
+            {
+                "from": "0",
+                "color": "#5cd65c",
+                "text": "",
+                "textType": "label"
+            },
+            {
+                "from": "4",
+                "color": "#00fffb",
+                "text": "",
+                "textType": "label"
+            },
+            {
+                "from": "7",
+                "color": "#00fffb",
+                "text": "",
+                "textType": "label"
+            }
+        ],
+        "min": 0,
+        "max": "8700",
+        "sizeThickness": 16,
+        "sizeGap": 4,
+        "sizeKeyThickness": 8,
+        "styleRounded": true,
+        "styleGlow": false,
+        "className": "",
+        "x": 1010,
+        "y": 300,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "37807f8fa40e7895",
+        "type": "comment",
+        "z": "16c6798d3e2bf35b",
+        "g": "fbec14f34af4a2e8",
+        "name": "อ่านค่าจาก เซ็นเซอร์วัดระดับน้ำ",
+        "info": "ชุดนี้ใช้ดึงค่าจากPLC ที่ดึงค่าจากเซ็นเซอร์วัดระดับน้ำอีกทีหนึ่ง",
+        "x": 560,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "aefc14f632b7a052",
+        "type": "http request",
+        "z": "16c6798d3e2bf35b",
+        "g": "fbec14f34af4a2e8",
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "query",
+        "url": "https://script.google.com/macros/s/AKfycbx2r3uYdZJBB0M0VZOg6-yQ2ALlhx-Osc-LXTeMMRU3k68SyWVhdE32IcsR-kPErI4D/exec",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 1030,
+        "y": 420,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "669914942ce6514e",
+        "type": "function",
+        "z": "16c6798d3e2bf35b",
+        "g": "fbec14f34af4a2e8",
+        "name": "function 198",
+        "func": "// 1. Config\nvar mySheetID = \"1RJ9OI8Bz8Xy_7HW7fZVQnjeYshDd0BZUZrkG3ycJfy0\"; \n\n// 2. รับค่าระดับน้ำ (ตัวเลข)\nvar rawValue = msg.payload.D212 || msg.payload; \nvar tankLevel = parseFloat(rawValue || 0); // แปลงเป็นตัวเลข (Float)\n\n// 3. เตรียมข้อมูลส่ง Google Sheet\nmsg.payload = {\n    \"spreadsheetId\": mySheetID,\n    \"sheetName\": \"Tank\",  // <--- สั่งให้ไปลงที่แท็บ \"FireTank\"\n    \"timestamp\": new Date().toLocaleString(\"th-TH\", { timeZone: \"Asia/Bangkok\" }),\n    \"level\": tankLevel,       // <--- ค่าตัวเลขที่จะเก็บ\n    \"status\": (tankLevel > 50) ? \"NORMAL\" : \"LOW\" // (แถม) สถานะ\n};\n\n// บันทึกข้อมูลลง Global (รักษาค่า flow และ temp ไว้ด้วย)\nvar currentData = global.get(\"waterTankData\") || {};\ncurrentData.level = tankLevel;\ncurrentData.timestamp = msg.payload.timestamp;\nglobal.set(\"waterTankData\", currentData);\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 870,
+        "y": 420,
+        "wires": [
+            [
+                "aefc14f632b7a052"
+            ]
+        ]
+    },
+    {
+        "id": "flow_read_node",
+        "type": "Ind MC Read",
+        "z": "16c6798d3e2bf35b",
+        "g": "fbec14f34af4a2e8",
+        "name": "Water Flow",
+        "topic": "",
+        "connection": "19365867cddfcbcb",
+        "address": "D501",
+        "addressType": "str",
+        "outputFormat": 0,
+        "errorHandling": "throw",
+        "outputs": 1,
+        "x": 680,
+        "y": 360,
+        "wires": [
+            [
+                "flow_func_node"
+            ]
+        ]
+    },
+    {
+        "id": "flow_func_node",
+        "type": "function",
+        "z": "16c6798d3e2bf35b",
+        "g": "fbec14f34af4a2e8",
+        "name": "D501 -> Flow",
+        "func": "var flow = parseFloat(msg.payload.D501 || 0);\nvar tankData = global.get(\"waterTankData\") || {};\ntankData.flow = flow;\nglobal.set(\"waterTankData\", tankData);\nmsg.payload = flow;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 850,
+        "y": 360,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "temp_read_node",
+        "type": "Ind MC Read",
+        "z": "16c6798d3e2bf35b",
+        "g": "fbec14f34af4a2e8",
+        "name": "Water Temp",
+        "topic": "",
+        "connection": "19365867cddfcbcb",
+        "address": "D502",
+        "addressType": "str",
+        "outputFormat": 0,
+        "errorHandling": "throw",
+        "outputs": 1,
+        "x": 680,
+        "y": 400,
+        "wires": [
+            [
+                "temp_func_node"
+            ]
+        ]
+    },
+    {
+        "id": "temp_func_node",
+        "type": "function",
+        "z": "16c6798d3e2bf35b",
+        "g": "fbec14f34af4a2e8",
+        "name": "D502 -> Temp",
+        "func": "var temp = parseFloat(msg.payload.D502 || 0);\nvar tankData = global.get(\"waterTankData\") || {};\ntankData.temp = temp;\nglobal.set(\"waterTankData\", tankData);\nmsg.payload = temp;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 850,
+        "y": 400,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "19365867cddfcbcb",
+        "type": "Ind MC Protocol Connection",
+        "name": "Fire tank",
+        "host": "192.168.7.158",
+        "port": "9020",
+        "protocol": "TCP",
+        "frame": "1E",
+        "plcType": "Q",
+        "ascii": false,
+        "PLCStation": "",
+        "PCStation": "",
+        "PLCModuleNo": "",
+        "network": "",
+        "octalInputOutput": false,
+        "timeout": "1000",
+        "autoConnect": true
+    },
+    {
+        "id": "a7a99b7e7259405f",
+        "type": "ui-group",
+        "name": "3",
+        "page": "7e073939c72278d6",
+        "width": 2,
+        "height": 1,
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "7e073939c72278d6",
+        "type": "ui-page",
+        "name": "Tank",
+        "ui": "7bb7adaaddc0953a",
+        "path": "/Tank",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "1fbd4067e521f2d3",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 1,
+        "className": "",
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "7bb7adaaddc0953a",
+        "type": "ui-base",
+        "name": "My Dashboard",
+        "path": "/dashboard",
+        "appIcon": "",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control",
+            "ui-button"
+        ],
+        "showPathInSidebar": false,
+        "headerContent": "dashboard",
+        "navigationStyle": "default",
+        "titleBarStyle": "default",
+        "showReconnectNotification": true,
+        "notificationDisplayTime": 1,
+        "showDisconnectNotification": true,
+        "allowInstall": true
+    },
+    {
+        "id": "1fbd4067e521f2d3",
+        "type": "ui-theme",
+        "name": "Default Theme",
+        "colors": {
+            "surface": "#ffffff",
+            "primary": "#0094ce",
+            "bgPage": "#ffffff",
+            "groupBg": "#ffffff",
+            "groupOutline": "#cccccc"
+        },
+        "sizes": {
+            "density": "default",
+            "pagePadding": "12px",
+            "groupGap": "12px",
+            "groupBorderRadius": "4px",
+            "widgetGap": "12px"
+        }
+    },
+    {
+        "id": "b647da1b67a23b3a",
+        "type": "group",
+        "z": "16c6798d3e2bf35b",
+        "name": "ส่งข้อมูลไปยังเว็ป",
+        "style": {
+            "fill": "#ffdf7f",
+            "label": true
+        },
+        "nodes": [
+            "ad4a5c36e45219a6",
+            "6406c3f758c7ddbf",
+            "5614806d09234d35"
+        ],
+        "x": 474,
+        "y": 499,
+        "w": 552,
+        "h": 82
+    },
+    {
+        "id": "ad4a5c36e45219a6",
+        "type": "http in",
+        "z": "16c6798d3e2bf35b",
+        "g": "b647da1b67a23b3a",
+        "name": "API: GET /machines",
+        "url": "/machines",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 590,
+        "y": 540,
+        "wires": [
+            [
+                "5614806d09234d35"
+            ]
+        ]
+    },
+    {
+        "id": "6406c3f758c7ddbf",
+        "type": "http response",
+        "z": "16c6798d3e2bf35b",
+        "g": "b647da1b67a23b3a",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 950,
+        "y": 540,
+        "wires": []
+    },
+    {
+        "id": "5614806d09234d35",
+        "type": "function",
+        "z": "16c6798d3e2bf35b",
+        "g": "b647da1b67a23b3a",
+        "name": "ดึงข้อมูลจาก Global",
+        "func": "var machines = global.get(\"machineData\") || [];\nvar tank = global.get(\"waterTankData\") || {};\n\nmsg.payload = {\n    machines: machines,\n    waterTank: tank\n};\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 790,
+        "y": 540,
+        "wires": [
+            [
+                "6406c3f758c7ddbf"
+            ]
+        ]
+    },
+    {
+        "id": "a2a78c88f93b7b6b",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-mcprotocol-ind": "1.7.0",
+            "@flowfuse/node-red-dashboard": "1.30.1"
+        }
+    }
+]

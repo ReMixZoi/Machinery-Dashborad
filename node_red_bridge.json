@@ -1,0 +1,225 @@
+[
+    {
+        "id": "tab_production",
+        "type": "tab",
+        "label": "Production Flow",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "broker_emqx",
+        "type": "mqtt-broker",
+        "name": "Public Broker",
+        "broker": "broker.emqx.io",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "modbus_client_node",
+        "type": "modbus-client",
+        "name": "1200-2",
+        "clienttype": "tcp",
+        "tcpHost": "192.168.7.125",
+        "tcpPort": 502,
+        "unit_id": 2,
+        "clientTimeout": 1000,
+        "reconnectOnTimeout": true
+    },
+    {
+        "id": "read_status",
+        "type": "modbus-read",
+        "z": "tab_production",
+        "name": "Read Status (40001)",
+        "topic": "",
+        "dataType": "HoldingRegister",
+        "adr": "0",
+        "quantity": "1",
+        "rate": "2",
+        "server": "modbus_client_node",
+        "x": 200,
+        "y": 160,
+        "wires": [
+            [
+                "func_status"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "func_status",
+        "type": "function",
+        "z": "tab_production",
+        "name": "Process Status",
+        "func": "let val = msg.payload.data[0];\nmsg.payload = val === 1 ? true : false;\nreturn msg;",
+        "outputs": 1,
+        "x": 450,
+        "y": 160,
+        "wires": [
+            [
+                "mqtt_status"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_status",
+        "type": "mqtt out",
+        "z": "tab_production",
+        "name": "Pub Status",
+        "topic": "factory/update/machine/2/status",
+        "qos": "",
+        "retain": "",
+        "broker": "broker_emqx",
+        "x": 700,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "read_present",
+        "type": "modbus-read",
+        "z": "tab_production",
+        "name": "Read Present (40002)",
+        "dataType": "HoldingRegister",
+        "adr": "1",
+        "quantity": "1",
+        "rate": "2",
+        "server": "modbus_client_node",
+        "x": 200,
+        "y": 240,
+        "wires": [
+            [
+                "func_present"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "func_present",
+        "type": "function",
+        "z": "tab_production",
+        "name": "Div 10",
+        "func": "msg.payload = msg.payload.data[0] / 10;\nreturn msg;",
+        "outputs": 1,
+        "x": 450,
+        "y": 240,
+        "wires": [
+            [
+                "mqtt_present"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_present",
+        "type": "mqtt out",
+        "z": "tab_production",
+        "name": "Pub Present Cycle",
+        "topic": "factory/update/machine/2/presentCycle",
+        "broker": "broker_emqx",
+        "x": 700,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "read_last",
+        "type": "modbus-read",
+        "z": "tab_production",
+        "name": "Read Last (40003)",
+        "dataType": "HoldingRegister",
+        "adr": "2",
+        "quantity": "1",
+        "rate": "2",
+        "server": "modbus_client_node",
+        "x": 200,
+        "y": 320,
+        "wires": [
+            [
+                "func_last"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "func_last",
+        "type": "function",
+        "z": "tab_production",
+        "name": "Div 10",
+        "func": "msg.payload = msg.payload.data[0] / 10;\nreturn msg;",
+        "outputs": 1,
+        "x": 450,
+        "y": 320,
+        "wires": [
+            [
+                "mqtt_last"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_last",
+        "type": "mqtt out",
+        "z": "tab_production",
+        "name": "Pub Last Cycle",
+        "topic": "factory/update/machine/2/lastCycle",
+        "broker": "broker_emqx",
+        "x": 700,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "read_std",
+        "type": "modbus-read",
+        "z": "tab_production",
+        "name": "Read STD (40017)",
+        "dataType": "HoldingRegister",
+        "adr": "16",
+        "quantity": "1",
+        "rate": "2",
+        "server": "modbus_client_node",
+        "x": 200,
+        "y": 400,
+        "wires": [
+            [
+                "func_std"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "func_std",
+        "type": "function",
+        "z": "tab_production",
+        "name": "Raw Value",
+        "func": "msg.payload = msg.payload.data[0];\nreturn msg;",
+        "outputs": 1,
+        "x": 450,
+        "y": 400,
+        "wires": [
+            [
+                "mqtt_std"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_std",
+        "type": "mqtt out",
+        "z": "tab_production",
+        "name": "Pub STD Cycle",
+        "topic": "factory/update/machine/2/stdCycle",
+        "broker": "broker_emqx",
+        "x": 700,
+        "y": 400,
+        "wires": []
+    }
+]

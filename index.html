@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Monitor</title>
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- MQTT.js -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- Mock Data Generator for Machines ---
+        const generateMockMachines = () => {
+            return Array.from({ length: 13 }, (_, i) => {
+                const id = i + 1;
+                const isRunning = Math.random() > 0.2;
+                return {
+                    id: id,
+                    presentCycle: (Math.random() * 300).toFixed(1),
+                    lastCycle: (Math.random() * 300).toFixed(1),
+                    stdCycle: Math.floor(Math.random() * 200) + 50,
+                    model: `MODEL-${Math.floor(Math.random() * 1000)}`,
+                    cavity: Math.floor(Math.random() * 10) + 1,
+                    totalPcs: Math.floor(Math.random() * 5000),
+                    status: isRunning,
+                    // Energy Data
+                    power: isRunning ? (Math.random() * 15 + 5).toFixed(2) : '0.00',
+                    voltage: (220 + Math.random() * 5).toFixed(1),
+                    current: isRunning ? (Math.random() * 10 + 2).toFixed(1) : '0.0',
+                    dailyEnergy: (Math.random() * 100).toFixed(1),
+                    waterLevel: Math.floor(Math.random() * 60) + 40,
+                    waterFlow: (Math.random() * 50 + 10).toFixed(1),
+                    temperature: (Math.random() * 10 + 30).toFixed(1)
+                };
+            });
+        };
+
+        const MachineRow = ({ data, viewMode }) => {
+            return (
+                <div className="machine-row glass-card">
+                    <div className="machine-header">
+                        <span className="machine-id">{data.id}</span>
+                    </div>
+                    {viewMode === 'CYCLE' ? (
+                        <div className="machine-info-grid">
+                            <div className="info-group">
+                                <label>Present cycle</label>
+                                <div className="value">{data.presentCycle}</div>
+                            </div>
+                            <div className="info-group">
+                                <label>Last cycle</label>
+                                <div className="value">{data.lastCycle}</div>
+                            </div>
+                            <div className="info-group">
+                                <label>STD CYCLE</label>
+                                <div className="value">{data.stdCycle}</div>
+                            </div>
+
+                            <div className="info-group">
+                                <label>MODEL</label>
+                                <div className="value">{data.model}</div>
+                            </div>
+
+                            <div className="info-group">
+                                <label>CAVITY</label>
+                                <div className="value highlight-value">{data.cavity}</div>
+                            </div>
+
+                            <div className="info-group">
+                                <label>Total Pcs.</label>
+                                <div className="value">{data.totalPcs}</div>
+                            </div>
+
+                            <div className="info-group status-group">
+                                <label>Status</label>
+                                <div className={`status-toggle ${data.status ? 'active' : ''}`}>
+                                    <div className="toggle-handle"></div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="machine-info-grid">
+                            <div className="info-group">
+                                <label>Power (kW)</label>
+                                <div className="value" style={{ color: 'var(--neon-green)' }}>{data.power}</div>
+                            </div>
+                            <div className="info-group">
+                                <label>Voltage (V)</label>
+                                <div className="value">{data.voltage}</div>
+                            </div>
+                            <div className="info-group">
+                                <label>Current (A)</label>
+                                <div className="value">{data.current}</div>
+                            </div>
+                            <div className="info-group wide">
+                                <label>Daily Energy (kWh)</label>
+                                <div className="value">{data.dailyEnergy}</div>
+                            </div>
+
+                            <div className="info-group status-group">
+                                <label>Status</label>
+                                <div className={`status-toggle ${data.status ? 'active' : ''}`}>
+                                    <div className="toggle-handle"></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+
+
+        const WaterMonitor = ({ machines, isSimulation, realData }) => {
+            const [localLevel, setLocalLevel] = useState(75); // Always stored as percentage (0-100)
+            const [localRaw, setLocalRaw] = useState(0);      // Raw value (e.g. 0-8700)
+            const [localFlow, setLocalFlow] = useState(45.2);
+            const [localTemp, setLocalTemp] = useState(28.5);
+            const [maxCapacity, setMaxCapacity] = useState(8700);
+
+            useEffect(() => {
+                if (realData) {
+                    // Update Level
+                    if (realData.level !== undefined) {
+                        const val = parseFloat(realData.level);
+                        if (val > 100) {
+                            setLocalRaw(val);
+                            setLocalLevel(parseFloat(((val / maxCapacity) * 100).toFixed(1)));
+                        } else {
+                            setLocalLevel(val);
+                            setLocalRaw(Math.round((val / 100) * maxCapacity));
+                        }
+                    }
+                    // Update Flow
+                    if (realData.flow !== undefined) {
+                        setLocalFlow(parseFloat(realData.flow));
+                    }
+                    // Update Temp
+                    if (realData.temp !== undefined) {
+                        setLocalTemp(parseFloat(realData.temp));
+                    }
+                } else if (isSimulation) {
+                    const interval = setInterval(() => {
+                        setLocalLevel(prev => {
+                            const change = (Math.random() * 2 - 1);
+                            const next = Math.min(100, Math.max(0, parseFloat((prev + change).toFixed(1))));
+                            setLocalRaw(Math.round((next / 100) * maxCapacity));
+                            return next;
+                        });
+                        setLocalFlow(prev => parseFloat((prev + (Math.random() * 2 - 1)).toFixed(1)));
+                        setLocalTemp(prev => parseFloat((prev + (Math.random() * 0.4 - 0.2)).toFixed(1)));
+                    }, 2000);
+                    return () => clearInterval(interval);
+                }
+            }, [realData, isSimulation, maxCapacity]);
+
+            return (
+                <div className="water-monitor-container">
+                    <div className="water-monitor-visual">
+                        <div className="large-water-tank">
+                            <div className="large-water-fill" style={{ height: `${localLevel}%` }}>
+                                {/* Bubbles */}
+                                <div className="bubble" style={{ left: '10%', width: '10px', height: '10px', animationDelay: '0s' }}></div>
+                                <div className="bubble" style={{ left: '30%', width: '15px', height: '15px', animationDelay: '1s' }}></div>
+                                <div className="bubble" style={{ left: '70%', width: '8px', height: '8px', animationDelay: '2s' }}></div>
+                                <div className="bubble" style={{ left: '50%', width: '12px', height: '12px', animationDelay: '1.5s' }}></div>
+                            </div>
+                        </div>
+                        <div className="tank-graduations">
+                            <span>100%</span>
+                            <span>75%</span>
+                            <span>50%</span>
+                            <span>25%</span>
+                            <span>0%</span>
+                        </div>
+                        <div style={{ position: 'absolute', top: '20px', left: '20px', background: 'rgba(0,0,0,0.6)', padding: '10px', borderRadius: '10px' }}>
+                            <div className="water-stat-title">Current Level</div>
+                            <div className="water-stat-value">{localLevel}%</div>
+                        </div>
+                    </div>
+
+                    <div className="water-monitor-controls">
+                        <h2 style={{ fontFamily: 'Orbitron', color: 'var(--neon-cyan)', marginBottom: '10px' }}>Main Water System</h2>
+
+                        <div className="water-stat-card">
+                            <div>
+                                <div className="water-stat-title">Total Volume</div>
+                                <div className="sub-label">Measured from PLC</div>
+                            </div>
+                            <div className="water-stat-value">
+                                {localRaw} <span style={{ fontSize: '1rem', color: 'var(--text-dim)' }}>L</span>
+                            </div>
+                        </div>
+
+                        <div className="water-stat-card">
+                            <div>
+                                <div className="water-stat-title">Flow Rate</div>
+                                <div className="sub-label">Inlet / Outlet</div>
+                            </div>
+                            <div className="water-stat-value">
+                                {localFlow} <span style={{ fontSize: '1rem', color: 'var(--text-dim)' }}>L/min</span>
+                            </div>
+                        </div>
+
+                        <div className="water-stat-card">
+                            <div>
+                                <div className="water-stat-title">Temperature</div>
+                                <div className="sub-label">Average</div>
+                            </div>
+                            <div className="water-stat-value">
+                                {localTemp} <span style={{ fontSize: '1rem', color: 'var(--text-dim)' }}>°C</span>
+                            </div>
+                        </div>
+
+                        <div className="water-control-panel">
+                            <h3 style={{ marginBottom: '15px', color: 'var(--text-main)' }}>Manual Controls</h3>
+
+                            <div className="slider-container">
+                                <div className="slider-label">
+                                    <span>Set Water Level</span>
+                                    <span>{localLevel}%</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    step="0.1"
+                                    value={localLevel}
+                                    onChange={(e) => {
+                                        const newVal = parseFloat(e.target.value);
+                                        setLocalLevel(newVal);
+                                        setLocalRaw(Math.round((newVal / 100) * maxCapacity));
+                                    }}
+                                />
+                            </div>
+
+                            <div className="slider-container">
+                                <div className="slider-label">
+                                    <span>Max Capacity</span>
+                                    <span>{maxCapacity} L</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="500"
+                                    max="10000"
+                                    step="100"
+                                    value={maxCapacity}
+                                    onChange={(e) => {
+                                        const newCap = parseInt(e.target.value);
+                                        setMaxCapacity(newCap);
+                                        setLocalRaw(Math.round((localLevel / 100) * newCap));
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+
+        const App = () => {
+            // Settings State
+            const [mqttSettings, setMqttSettings] = useState({
+                host: 'broker.emqx.io:1883/mqtt',
+                topic: 'powermeter/data/slave1/int32/',
+            });
+            const [httpUrl, setHttpUrl] = useState('http://192.168.7.86:1880/machines');
+            const [googleSheetsUrl, setGoogleSheetsUrl] = useState('https://script.google.com/macros/s/AKfycbwaxSSrSiftaqOQjxaf7SnrXhTC2Y-AfhgqHExAbmzhtBNjmiS9woGSbhkzO_Hd4Ubc/exec');
+            const [dataMode, setDataMode] = useState('SIMULATION'); // 'SIMULATION', 'MQTT', 'HTTP', 'GOOGLE_SHEETS'
+            const [showSettings, setShowSettings] = useState(false);
+
+            // Data State
+            const [status, setStatus] = useState('Initializing...');
+            const [machines, setMachines] = useState([]);
+            const [waterTankData, setWaterTankData] = useState(null);
+            const [activeTab, setActiveTab] = useState('ALL');
+            const [viewMode, setViewMode] = useState('CYCLE'); // 'CYCLE' or 'ENERGY'
+
+            // Categories Configuration
+            const categories = [
+                { id: 'ALL', label: 'Overview' },
+                { id: 'LINE1', label: 'Line A (01-07)' },
+                { id: 'LINE2', label: 'Line B (08-13)' },
+                { id: 'WATER_TANK', label: 'Water Tank' }
+            ];
+
+            // Filter logic
+            const filteredMachines = machines.filter(m => {
+                if (activeTab === 'ALL') return true;
+                if (activeTab === 'LINE1') return m.id <= 7;
+                if (activeTab === 'LINE2') return m.id > 7;
+                return true;
+            });
+            // MQTT Client Ref
+            const clientRef = useRef(null);
+
+            // --- Simulation Loop ---
+            useEffect(() => {
+                if (dataMode !== 'SIMULATION') return;
+
+                // Initial Load
+                setMachines(generateMockMachines());
+                setStatus('Simulating Data');
+
+                const interval = setInterval(() => {
+                    setMachines(prev => prev.map(m => ({
+                        ...m,
+                        presentCycle: (parseFloat(m.presentCycle) + (Math.random() * 2 - 1)).toFixed(1),
+                        totalPcs: m.status ? m.totalPcs + 1 : m.totalPcs,
+                        waterLevel: Math.min(100, Math.max(0, m.waterLevel + (Math.random() * 4 - 2))),
+                        waterFlow: m.status ? (parseFloat(m.waterFlow) + (Math.random() * 2 - 1)).toFixed(1) : '0.0',
+                        temperature: (parseFloat(m.temperature) + (Math.random() * 0.5 - 0.25)).toFixed(1)
+                    })));
+                }, 2000);
+
+                return () => clearInterval(interval);
+            }, [dataMode]);
+
+
+            // --- HTTP Polling Loop ---
+            useEffect(() => {
+                if (dataMode !== 'HTTP') return;
+
+                setStatus('Polling Node-RED...');
+
+                const fetchData = async () => {
+                    try {
+                        const res = await fetch(httpUrl);
+                        if (!res.ok) throw new Error('Network response was not ok');
+                        const data = await res.json();
+
+                        // Handle new composite object format { machines: [], waterTank: {} }
+                        if (data && data.machines) {
+                            setMachines(data.machines);
+                            if (data.waterTank) setWaterTankData(data.waterTank);
+                            setStatus('Connected (HTTP)');
+                        }
+                        // Fallback for old array format
+                        else if (Array.isArray(data)) {
+                            setMachines(data);
+                            setStatus('Connected (HTTP)');
+                        }
+                    } catch (error) {
+                        console.error('Fetch error:', error);
+                        setStatus('Error (HTTP)');
+                    }
+                };
+
+                fetchData(); // Initial fetch
+                const interval = setInterval(fetchData, 2000);
+
+                return () => clearInterval(interval);
+            }, [dataMode, httpUrl]);
+
+            // --- Google Sheets Polling Loop ---
+            useEffect(() => {
+                if (dataMode !== 'GOOGLE_SHEETS') return;
+
+                setStatus('Connecting to Google Sheets...');
+
+                const fetchData = async () => {
+                    try {
+                        const res = await fetch(googleSheetsUrl);
+                        if (!res.ok) throw new Error('Network response was not ok');
+                        const data = await res.json();
+
+                        // Google Sheets API returns: { waterTank: {...}, machines: [] }
+                        if (data && data.waterTank) {
+                            setWaterTankData(data.waterTank);
+                            setStatus('Connected (Google Sheets)');
+                        }
+                        if (data && data.machines) {
+                            setMachines(data.machines);
+                        }
+                    } catch (error) {
+                        console.error('Google Sheets fetch error:', error);
+                        setStatus('Error (Google Sheets)');
+                    }
+                };
+
+                fetchData(); // Initial fetch
+                const interval = setInterval(fetchData, 5000); // Poll every 5 seconds (Google Sheets quota limit)
+
+                return () => clearInterval(interval);
+            }, [dataMode, googleSheetsUrl]);
+
+            // --- MQTT Connection ---
+            useEffect(() => {
+                if (dataMode !== 'MQTT') {
+                    if (clientRef.current) {
+                        try { clientRef.current.end(); } catch (e) { }
+                        clientRef.current = null;
+                    }
+                    return;
+                }
+
+                setStatus('Connecting...');
+                try {
+                    // Note: Using WebSocket URL for browser
+                    const client = mqtt.connect(`wss://${mqttSettings.host}`);
+                    clientRef.current = client;
+
+                    client.on('connect', () => {
+                        setStatus('Connected (MQTT)');
+                        client.subscribe('factory/update/#');
+                    });
+
+                    client.on('message', (topic, message) => {
+                        try {
+                            const msgStr = message.toString();
+                            const parts = topic.split('/');
+                            // Topic format: factory/update/machine/<id>/<field>
+                            // Example: factory/update/machine/2/presentCycle
+
+                            if (parts.length >= 5 && parts[2] === 'machine') {
+                                const id = parseInt(parts[3]);
+                                const field = parts[4]; // e.g. status, presentCycle
+
+                                setMachines(prev => {
+                                    const exists = prev.find(m => m.id === id);
+                                    if (exists) {
+                                        return prev.map(m => m.id === id ? { ...m, [field]: msgStr } : m);
+                                    } else {
+                                        return [...prev, { id, [field]: msgStr }];
+                                    }
+                                });
+                            }
+                            // Fallback for bulk array update
+                            else {
+                                const payload = JSON.parse(msgStr);
+                                if (Array.isArray(payload)) setMachines(payload);
+                            }
+                        } catch (e) {
+                            console.error("JSON Parse Error", e);
+                        }
+                    });
+
+                    client.on('error', (err) => {
+                        console.error('Connection error: ', err);
+                        setStatus('Error (MQTT)');
+                    });
+                } catch (e) {
+                    setStatus('Config Error');
+                }
+
+                return () => {
+                    if (clientRef.current) try { clientRef.current.end(); } catch (e) { }
+                }
+            }, [dataMode, mqttSettings]);
+
+            return (
+                <div className="app-container">
+                    <header>
+                        <div>
+                            <h1>Production Monitor <span style={{ fontSize: '0.5em', color: 'var(--neon-green)' }}>DEMO</span></h1>
+                            <div className={`status-badge ${status.includes('Connected') || status.includes('Simulating') ? 'connected' : 'disconnected'}`}>
+                                <div className="status-dot"></div>
+                                {status}
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                            {/* Mode Selector */}
+                            <select
+                                value={dataMode}
+                                onChange={(e) => setDataMode(e.target.value)}
+                                className="mode-selector"
+                            >
+                                <option value="SIMULATION">🛠 Simulation</option>
+                                <option value="HTTP">🌐 Node-RED (HTTP)</option>
+                                <option value="GOOGLE_SHEETS">📊 Google Sheets</option>
+                                {/*<option value="MQTT">📡 EMQX (MQTT)</option>*/}
+                            </select>
+
+                            <button className="settings-btn" onClick={() => setShowSettings(true)}>
+                                ⚙ SETTINGS
+                            </button>
+                        </div>
+                    </header>
+
+                    {/* Category Navigation & View Toggle */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', padding: '0 10px' }}>
+                        <div className="category-tabs" style={{ margin: 0, padding: 0 }}>
+                            {categories.map(cat => (
+                                <button
+                                    key={cat.id}
+                                    className={`tab-btn ${activeTab === cat.id ? 'active' : ''}`}
+                                    onClick={() => setActiveTab(cat.id)}
+                                >
+                                    {cat.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {activeTab !== 'WATER_TANK' && (
+                            <div className="view-toggle" style={{ display: 'flex', gap: '10px' }}>
+                                <button
+                                    className={`tab-btn ${viewMode === 'CYCLE' ? 'active' : ''}`}
+                                    onClick={() => setViewMode('CYCLE')}
+                                >
+                                    🏭 PROD
+                                </button>
+                                <button
+                                    className={`tab-btn ${viewMode === 'ENERGY' ? 'active' : ''}`}
+                                    onClick={() => setViewMode('ENERGY')}
+                                >
+                                    ⚡ ENERGY
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {activeTab === 'WATER_TANK' ? (
+                        <WaterMonitor
+                            machines={machines}
+                            isSimulation={dataMode === 'SIMULATION'}
+                            realData={waterTankData}
+                        />
+                    ) : (
+                        <div className="machine-list">
+                            {filteredMachines.map(machine => (
+                                <MachineRow key={machine.id} data={machine} viewMode={viewMode} />
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Settings Modal */}
+                    {showSettings && (
+                        <div className="modal-overlay">
+                            <div className="modal-content">
+                                <h2 style={{ marginBottom: '20px', color: 'var(--neon-cyan)' }}>Configuration</h2>
+                                <div className="form-group">
+                                    <label>Data Mode</label>
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <button className={`settings-btn ${dataMode === 'SIMULATION' ? 'active' : ''}`} onClick={() => setDataMode('SIMULATION')}>Simulation</button>
+                                        <button className={`settings-btn ${dataMode === 'MQTT' ? 'active' : ''}`} onClick={() => setDataMode('MQTT')}>MQTT</button>
+                                        <button className={`settings-btn ${dataMode === 'HTTP' ? 'active' : ''}`} onClick={() => setDataMode('HTTP')}>Node-RED (HTTP)</button>
+                                    </div>
+                                </div>
+                                {dataMode === 'MQTT' && (
+                                    <div className="form-group">
+                                        <label>Broker (WS)</label>
+                                        <input value={mqttSettings.host} onChange={e => setMqttSettings({ ...mqttSettings, host: e.target.value })} />
+                                        <label style={{ marginTop: 10 }}>Topic</label>
+                                        <input value={mqttSettings.topic} onChange={e => setMqttSettings({ ...mqttSettings, topic: e.target.value })} />
+                                    </div>
+                                )}
+                                {dataMode === 'HTTP' && (
+                                    <div className="form-group">
+                                        <label>Node-RED API URL</label>
+                                        <input value={httpUrl} onChange={e => setHttpUrl(e.target.value)} />
+                                    </div>
+                                )}
+                                <button className="primary-btn" onClick={() => setShowSettings(false)}>Close</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>
