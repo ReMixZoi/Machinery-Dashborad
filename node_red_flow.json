@@ -496,4 +496,51 @@
             "@flowfuse/node-red-dashboard": "1.30.1"
         }
     }
+
+]
+
+[
+    {
+        "id": "20fd8aea5929257c",
+        "type": "http request",
+        "z": "606aeeb2baf6caa6",
+        "g": "046b4dc861f11cc6",
+        "name": "Google Sheet POST",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://script.google.com/macros/s/AKfycbwaxSSrSiftaqOQjxaf7SnrXhTC2Y-AfhgqHExAbmzhtBNjmiS9woGSbhkzO_Hd4Ubc/exec",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 2440,
+        "y": 1300,
+        "wires": [
+            [
+                "d9eb250479004182"
+            ]
+        ]
+    },
+    {
+        "id": "d9eb250479004182",
+        "type": "debug",
+        "z": "606aeeb2baf6caa6",
+        "g": "046b4dc861f11cc6",
+        "name": "ผลลัพธ์ Sheet",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 2640,
+        "y": 1300,
+        "wires": []
+    }
 ]
