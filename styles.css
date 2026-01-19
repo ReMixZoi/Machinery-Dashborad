@@ -303,24 +303,11 @@ h1 {
 }
 
 .machine-info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 2.5fr 0.8fr 1fr 80px;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
     width: 100%;
-    gap: 15px;
-}
-
-.info-group {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    /* Ensure text truncation works */
-}
-
-.info-group .value {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    gap: 10px;
 }
 
 .info-group {
