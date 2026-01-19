@@ -51,39 +51,41 @@
         };
 
         const MachineRow = ({ data, viewMode }) => {
+            // Display only suffix
+            const displayId = (typeof data.id === "string" && data.id.includes("-")) ? data.id.split("-")[1] : data.id;
             return (
                 <div className="machine-row glass-card">
                     <div className="machine-header">
-                        <span className="machine-id">{data.id}</span>
+                        <span className="machine-id">{displayId}</span>
                     </div>
                     {viewMode === 'CYCLE' ? (
                         <div className="machine-info-grid">
                             <div className="info-group">
                                 <label>Present cycle</label>
-                                <div className="value">{data.presentCycle}</div>
+                                <div className="value">{data.presentCycle ?? data.present_cycle ?? 0}</div>
                             </div>
                             <div className="info-group">
                                 <label>Last cycle</label>
-                                <div className="value">{data.lastCycle}</div>
+                                <div className="value">{data.lastCycle ?? data.last_cycle ?? 0}</div>
                             </div>
                             <div className="info-group">
                                 <label>STD CYCLE</label>
-                                <div className="value">{data.stdCycle}</div>
+                                <div className="value">{data.stdCycle ?? data.std_cycle ?? 0}</div>
                             </div>
 
                             <div className="info-group">
                                 <label>MODEL</label>
-                                <div className="value">{data.model}</div>
+                                <div className="value">{data.model || '-'}</div>
                             </div>
 
                             <div className="info-group">
                                 <label>CAVITY</label>
-                                <div className="value highlight-value">{data.cavity}</div>
+                                <div className="value highlight-value">{data.cavity ?? 0}</div>
                             </div>
 
                             <div className="info-group">
                                 <label>Total Pcs.</label>
-                                <div className="value">{data.totalPcs}</div>
+                                <div className="value">{data.totalPcs ?? data.total_pcs ?? 0}</div>
                             </div>
 
                             <div className="info-group status-group">
@@ -300,12 +302,28 @@
                 { id: 'WATER_TANK', label: 'Water Tank' }
             ];
 
-            // Filter logic
+            // Filter logic - Suffix Based (1-7, 8-13)
             const filteredMachines = machines.filter(m => {
-                if (activeTab === 'ALL') return true;
-                if (activeTab === 'LINE1') return m.id <= 7;
-                if (activeTab === 'LINE2') return m.id > 7;
+                if (activeTab === "ALL") return true;
+
+                let suffix = 0;
+                if (typeof m.id === "string" && m.id.includes("-")) {
+                    suffix = parseInt(m.id.split("-")[1]);
+                } else {
+                    suffix = parseInt(m.id) || 0;
+                }
+
+                if (activeTab === "LINE1") return suffix >= 1 && suffix <= 7;
+                if (activeTab === "LINE2") return suffix >= 8 && suffix <= 13;
                 return true;
+            }).sort((a, b) => {
+                const getSuffix = (id) => {
+                    if (typeof id === "string" && id.includes("-")) {
+                        return parseInt(id.split("-")[1]) || 9999;
+                    }
+                    return typeof id === "number" ? id : 9999;
+                };
+                return getSuffix(a.id) - getSuffix(b.id);
             });
             // MQTT Client Ref
             const clientRef = useRef(null);
@@ -468,7 +486,7 @@
                 <div className="app-container">
                     <header>
                         <div>
-                            <h1>Production Monitor <span style={{ fontSize: '0.5em', color: 'var(--neon-green)' }}>DEMO</span></h1>
+                            <h1>Production Monitor <span style={{ fontSize: '0.5em', color: 'var(--neon-green)' }}>Alpha</span></h1>
                             <div className={`status-badge ${status.includes('Connected') || status.includes('Simulating') ? 'connected' : 'disconnected'}`}>
                                 <div className="status-dot"></div>
                                 {status}
@@ -482,7 +500,7 @@
                                 onChange={(e) => setDataMode(e.target.value)}
                                 className="mode-selector"
                             >
-                                {/*<option value="SIMULATION">🛠 Simulation</option>*/}
+                                <option value="SIMULATION">🛠 Simulation</option>
                                 <option value="HTTP">🌐 Node-RED (HTTP)</option>
                                 <option value="GOOGLE_SHEETS">📊 Google Sheets</option>
                                 {/*<option value="MQTT">📡 EMQX (MQTT)</option>*/}
@@ -582,4 +600,3 @@
 
 
 </html>
-
