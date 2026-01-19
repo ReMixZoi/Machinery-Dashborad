@@ -1,0 +1,101 @@
+[
+    {
+        "id": "mqtt_bridge_tab",
+        "type": "tab",
+        "label": "MQTT Bridge",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "inject_node",
+        "type": "inject",
+        "z": "mqtt_bridge_tab",
+        "name": "Every 5s",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 100,
+        "wires": [
+            [
+                "function_get_data"
+            ]
+        ]
+    },
+    {
+        "id": "function_get_data",
+        "type": "function",
+        "z": "mqtt_bridge_tab",
+        "name": "Get Global machineData",
+        "func": "// ดึงข้อมูลเครื่องจักรจาก Global Variable\nvar data = global.get('machineData');\n\nif (data) {\n    // ถ้ามีข้อมูล ให้ส่งออกไป\n    msg.payload = {\n        machines: data,\n        timestamp: new Date().toISOString()\n    };\n    return msg;\n} else {\n    // ถ้าไม่มีข้อมูล (เช่นเพิ่งเริ่มรัน)\n    // Node this.warn('No machineData found in global context');\n    return null;\n}",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 380,
+        "y": 100,
+        "wires": [
+            [
+                "mqtt_out_node"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_out_node",
+        "type": "mqtt out",
+        "z": "mqtt_bridge_tab",
+        "name": "Send to Cloud",
+        "topic": "production_monitor/machines/data",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "emqx_cloud_broker",
+        "x": 620,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "emqx_cloud_broker",
+        "type": "mqtt-broker",
+        "name": "EMQX Public",
+        "broker": "broker.emqx.io",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "sessionExpiry": ""
+    }
+]
