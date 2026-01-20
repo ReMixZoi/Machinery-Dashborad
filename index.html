@@ -45,7 +45,16 @@
                     dailyEnergy: (Math.random() * 100).toFixed(1),
                     waterLevel: Math.floor(Math.random() * 60) + 40,
                     waterFlow: (Math.random() * 50 + 10).toFixed(1),
-                    temperature: (Math.random() * 10 + 30).toFixed(1)
+                    temperature: (Math.random() * 10 + 30).toFixed(1),
+                    // New Mock Chart Data
+                    steam: (Math.random() * 0.2 + 0.5).toFixed(1),
+                    air: (Math.random() * 5 + 55).toFixed(1),
+                    water: (Math.random() * 5 + 40).toFixed(1),
+                    vac: (-(Math.random() * 0.5 + 0.8)).toFixed(1),
+                    tempRT100: (Math.random() * 2 + 36).toFixed(1),
+                    tempRT200: (Math.random() * 2 + 43).toFixed(1),
+                    tempHotWater: (Math.random() * 2 + 39).toFixed(1),
+                    tempMix: (Math.random() * 2 + 43).toFixed(1)
                 };
             });
         };
@@ -276,8 +285,88 @@
         };
 
 
+        const LiveChart = ({ title, data, labels, datasets, min, max }) => {
+            const canvasRef = useRef(null);
+            const chartRef = useRef(null);
+
+            useEffect(() => {
+                if (!canvasRef.current) return;
+
+                const ctx = canvasRef.current.getContext('2d');
+
+                // Destroy previous instance
+                if (chartRef.current) {
+                    chartRef.current.destroy();
+                }
+
+                chartRef.current = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false, // Disable animation for smooth live updates
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        scales: {
+                            x: {
+                                display: true,
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#888', maxTicksLimit: 6 }
+                            },
+                            y: {
+                                display: true,
+                                min: min,
+                                max: max,
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#888' }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                labels: { color: '#ccc' }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        }
+                    }
+                });
+
+                return () => {
+                    if (chartRef.current) chartRef.current.destroy();
+                };
+            }, [datasets, labels, min, max]); // Re-render when data changes
+
+            return (
+                <div className="chart-card">
+                    <h3>{title}</h3>
+                    <div className="canvas-container">
+                        <canvas ref={canvasRef}></canvas>
+                    </div>
+                </div>
+            );
+        };
+
         const SixtySecondsView = ({ machines }) => {
             const [selectedId, setSelectedId] = useState(null);
+            const [history, setHistory] = useState({
+                labels: [],
+                steam: [],
+                air: [],
+                water: [],
+                vac: [],
+                tempRT100: [],
+                tempRT200: [],
+                tempHotWater: [],
+                tempMix: []
+            });
 
             // Helper to extract suffix for sorting/display
             const getSuffix = (id) => {
@@ -289,6 +378,64 @@
 
             const sortedMachines = [...machines].sort((a, b) => getSuffix(a.id) - getSuffix(b.id));
 
+            // Listen for machine data updates to populate charts
+            useEffect(() => {
+                if (!selectedId) return;
+
+                const machine = machines.find(m => m.id === selectedId);
+                // If no machine found (yet), do nothing or wait
+                if (!machine) return;
+
+                const now = new Date().toLocaleTimeString('en-GB');
+                let label = now;
+
+                // Use machine timestamp if available (from Google Sheets or Node-RED)
+                if (machine.timestamp) {
+                    // Try to parse '20/1/2026, 12:56:10' or just '12:56:10'
+                    if (machine.timestamp.includes(',')) {
+                        label = machine.timestamp.split(',')[1].trim();
+                    } else if (machine.timestamp.includes('T')) {
+                        // ISO format
+                        try {
+                            label = new Date(machine.timestamp).toLocaleTimeString('en-GB');
+                        } catch (e) { label = machine.timestamp; }
+                    } else {
+                        label = machine.timestamp; // Assume it's already a time string or we want to show it as is
+                    }
+                }
+
+                // Helper to safely parse float
+                const val = (v, defaultVal) => {
+                    const parsed = parseFloat(v);
+                    return isNaN(parsed) ? defaultVal : parsed;
+                };
+
+                setHistory(prev => {
+                    // Prevent duplicate entries if timestamp matches last entry
+                    if (prev.labels.length > 0 && prev.labels[prev.labels.length - 1] === label) {
+                        return prev;
+                    }
+
+                    const newLabels = [...prev.labels, label].slice(-60); // Keep last 60 points
+
+                    // Map incoming machine keys (handling potential UPPERCASE from Sheets or lowercase from sim)
+                    // Note: 'water' collision - in mock it is water pressure, in WaterMonitor it is tank level?
+                    // As per chart request: Utilities Pressure & Flow -> Water.
+
+                    return {
+                        labels: newLabels,
+                        steam: [...prev.steam, val(machine.STEAM ?? machine.steam, 0)].slice(-60),
+                        air: [...prev.air, val(machine.AIR ?? machine.air, 0)].slice(-60),
+                        water: [...prev.water, val(machine.WATER ?? machine.water, 0)].slice(-60),
+                        vac: [...prev.vac, val(machine.VAC ?? machine.vac, 0)].slice(-60),
+                        tempRT100: [...prev.tempRT100, val(machine.TEMP_RT100 ?? machine.tempRT100, 0)].slice(-60),
+                        tempRT200: [...prev.tempRT200, val(machine.TEMP_RT200 ?? machine.tempRT200, 0)].slice(-60),
+                        tempHotWater: [...prev.tempHotWater, val(machine.TEMP_HOT_WATER ?? machine.tempHotWater, 0)].slice(-60),
+                        tempMix: [...prev.tempMix, val(machine.TEMP_MIX ?? machine.tempMix, 0)].slice(-60)
+                    };
+                });
+            }, [machines, selectedId]);
+
             if (selectedId) {
                 const machine = machines.find(m => m.id === selectedId);
                 return (
@@ -299,7 +446,38 @@
                         {machine ? (
                             <div className="single-machine-view">
                                 <MachineRow data={machine} viewMode="CYCLE" />
-                                {/* Future: Add specific 60-sec charts here */}
+
+                                <div className="charts-grid">
+                                    <LiveChart
+                                        title="Utilities Pressure & Flow"
+                                        labels={history.labels}
+                                        datasets={[
+                                            { label: 'Air', data: history.air, borderColor: '#00f3ff', tension: 0.4, borderWidth: 2 },
+                                            { label: 'Water', data: history.water, borderColor: '#00ff9d', tension: 0.4, borderWidth: 2 }
+                                        ]}
+                                        min={30} max={70}
+                                    />
+                                    <LiveChart
+                                        title="Temperatures (°C)"
+                                        labels={history.labels}
+                                        datasets={[
+                                            { label: 'RT100', data: history.tempRT100, borderColor: '#ff9d00', tension: 0.4, borderWidth: 2 },
+                                            { label: 'RT200', data: history.tempRT200, borderColor: '#ff0055', tension: 0.4, borderWidth: 2 },
+                                            { label: 'Hot Water', data: history.tempHotWater, borderColor: '#ffdd00', tension: 0.4, borderWidth: 1 },
+                                            { label: 'Mix', data: history.tempMix, borderColor: '#aa00ff', tension: 0.4, borderWidth: 1 }
+                                        ]}
+                                        min={30} max={50}
+                                    />
+                                    <LiveChart
+                                        title="Low Pressure / Vacuum"
+                                        labels={history.labels}
+                                        datasets={[
+                                            { label: 'Steam', data: history.steam, borderColor: '#fff', tension: 0.4, borderWidth: 2 },
+                                            { label: 'Vacuum', data: history.vac, borderColor: '#888', tension: 0.4, borderWidth: 2 }
+                                        ]}
+                                        min={-2} max={2}
+                                    />
+                                </div>
                             </div>
                         ) : (
                             <div style={{ color: 'white', textAlign: 'center' }}>Machine Data Not Found</div>
@@ -317,7 +495,7 @@
                             return (
                                 <div key={m.id} className="machine-select-btn" onClick={() => setSelectedId(m.id)}>
                                     <span className="machine-number">{displayNum}</span>
-                                    <span className="machine-model">{m.model || '-'}</span>
+
                                     <div style={{
                                         width: '8px',
                                         height: '8px',
@@ -358,7 +536,7 @@
                 { id: 'LINE1', label: 'Line A (01-07)' },
                 { id: 'LINE2', label: 'Line B (08-13)' },
                 { id: 'WATER_TANK', label: 'Water Tank' },
-                { id: '60SEC', label: '60 วิ' }
+                { id: '60SEC', label: '60 SEC' }
             ];
 
             // Filter logic - Suffix Based (1-7, 8-13)
@@ -402,7 +580,17 @@
                         totalPcs: m.status ? m.totalPcs + 1 : m.totalPcs,
                         waterLevel: Math.min(100, Math.max(0, m.waterLevel + (Math.random() * 4 - 2))),
                         waterFlow: m.status ? (parseFloat(m.waterFlow) + (Math.random() * 2 - 1)).toFixed(1) : '0.0',
-                        temperature: (parseFloat(m.temperature) + (Math.random() * 0.5 - 0.25)).toFixed(1)
+                        temperature: (parseFloat(m.temperature) + (Math.random() * 0.5 - 0.25)).toFixed(1),
+                        // Mock updates for new chart fields
+                        steam: (parseFloat(m.steam) + (Math.random() * 0.1 - 0.05)).toFixed(1),
+                        air: (parseFloat(m.air) + (Math.random() * 0.4 - 0.2)).toFixed(1),
+                        water: (parseFloat(m.water) + (Math.random() * 0.4 - 0.2)).toFixed(1),
+                        vac: (parseFloat(m.vac) + (Math.random() * 0.1 - 0.05)).toFixed(1),
+                        tempRT100: (parseFloat(m.tempRT100) + (Math.random() * 0.2 - 0.1)).toFixed(1),
+                        tempRT200: (parseFloat(m.tempRT200) + (Math.random() * 0.2 - 0.1)).toFixed(1),
+                        tempHotWater: (parseFloat(m.tempHotWater) + (Math.random() * 0.2 - 0.1)).toFixed(1),
+                        tempMix: (parseFloat(m.tempMix) + (Math.random() * 0.2 - 0.1)).toFixed(1),
+                        timestamp: new Date().toLocaleString('en-GB')
                     })));
                 }, 2000);
 
