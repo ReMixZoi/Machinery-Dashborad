@@ -283,7 +283,7 @@
                 topic: 'production_monitor/machines/data',
             });
             const [httpUrl, setHttpUrl] = useState('http://192.168.7.86:1880/machines');
-            const [googleSheetsUrl, setGoogleSheetsUrl] = useState('https://script.google.com/macros/s/AKfycbwaxSSrSiftaqOQjxaf7SnrXhTC2Y-AfhgqHExAbmzhtBNjmiS9woGSbhkzO_Hd4Ubc/exec');
+            const [googleSheetsUrl, setGoogleSheetsUrl] = useState('https://script.google.com/macros/s/AKfycbydKQgJ0c3hBbuv5kE4SvRBqaOWFbEwdbyoWkrfJwFzogpwZhhTBTMgPiHz06JE6XsCGw/exec');
             const [dataMode, setDataMode] = useState('GOOGLE_SHEETS'); // 'SIMULATION', 'MQTT', 'HTTP', 'GOOGLE_SHEETS'
             const [showSettings, setShowSettings] = useState(false);
 
@@ -403,17 +403,23 @@
                             setWaterTankData(data.waterTank);
                             setStatus('Connected (Google Sheets)');
                         }
-                        if (data && data.machines) {
-                            setMachines(data.machines);
+                        if (data && data.machines && Array.isArray(data.machines) && data.machines.length > 0) {
+                            setMachines(prev => {
+                                const map = new Map(prev.map(m => [String(m.id), m]));
+                                data.machines.forEach(m => map.set(String(m.id), m));
+                                return Array.from(map.values());
+                            });
+                        } else {
+                            console.warn("Received empty machine data, keeping previous state.");
                         }
                     } catch (error) {
                         console.error('Google Sheets fetch error:', error);
-                        setStatus('Error (Google Sheets)');
+                        // setStatus('Error (Google Sheets)'); // Don't show error immediately to avoid flicker
                     }
                 };
 
                 fetchData(); // Initial fetch
-                const interval = setInterval(fetchData, 1000); // Poll every 5 seconds (Google Sheets quota limit)
+                const interval = setInterval(fetchData, 1500); // Poll every 1.5 seconds (Safer for Google Sheets)
 
                 return () => clearInterval(interval);
             }, [dataMode, googleSheetsUrl]);
@@ -609,4 +615,3 @@
 
 
 </html>
-
