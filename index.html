@@ -413,7 +413,7 @@
                 };
 
                 fetchData(); // Initial fetch
-                const interval = setInterval(fetchData, 5000); // Poll every 5 seconds (Google Sheets quota limit)
+                const interval = setInterval(fetchData, 1000); // Poll every 5 seconds (Google Sheets quota limit)
 
                 return () => clearInterval(interval);
             }, [dataMode, googleSheetsUrl]);
@@ -609,3 +609,4 @@
 
 
 </html>
+
