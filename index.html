@@ -276,6 +276,64 @@
         };
 
 
+        const SixtySecondsView = ({ machines }) => {
+            const [selectedId, setSelectedId] = useState(null);
+
+            // Helper to extract suffix for sorting/display
+            const getSuffix = (id) => {
+                if (typeof id === "string" && id.includes("-")) {
+                    return parseInt(id.split("-")[1]) || 9999;
+                }
+                return typeof id === "number" ? id : 9999;
+            };
+
+            const sortedMachines = [...machines].sort((a, b) => getSuffix(a.id) - getSuffix(b.id));
+
+            if (selectedId) {
+                const machine = machines.find(m => m.id === selectedId);
+                return (
+                    <div className="sixty-sec-container">
+                        <button className="back-btn" onClick={() => setSelectedId(null)}>
+                            ← BACK TO LIST
+                        </button>
+                        {machine ? (
+                            <div className="single-machine-view">
+                                <MachineRow data={machine} viewMode="CYCLE" />
+                                {/* Future: Add specific 60-sec charts here */}
+                            </div>
+                        ) : (
+                            <div style={{ color: 'white', textAlign: 'center' }}>Machine Data Not Found</div>
+                        )}
+                    </div>
+                );
+            }
+
+            return (
+                <div className="sixty-sec-container">
+                    <h2 style={{ color: 'var(--neon-cyan)', fontFamily: 'Orbitron', textAlign: 'center', marginBottom: '10px' }}>Select Machine</h2>
+                    <div className="machine-selector-grid">
+                        {sortedMachines.map(m => {
+                            const displayNum = (typeof m.id === "string" && m.id.includes("-")) ? m.id.split("-")[1] : m.id;
+                            return (
+                                <div key={m.id} className="machine-select-btn" onClick={() => setSelectedId(m.id)}>
+                                    <span className="machine-number">{displayNum}</span>
+                                    <span className="machine-model">{m.model || '-'}</span>
+                                    <div style={{
+                                        width: '8px',
+                                        height: '8px',
+                                        borderRadius: '50%',
+                                        marginTop: '10px',
+                                        background: m.status ? 'var(--neon-green)' : '#555',
+                                        boxShadow: m.status ? '0 0 5px var(--neon-green)' : 'none'
+                                    }}></div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        };
+
         const App = () => {
             // Settings State
             const [mqttSettings, setMqttSettings] = useState({
@@ -299,7 +357,8 @@
                 { id: 'ALL', label: 'Overview' },
                 { id: 'LINE1', label: 'Line A (01-07)' },
                 { id: 'LINE2', label: 'Line B (08-13)' },
-                { id: 'WATER_TANK', label: 'Water Tank' }
+                { id: 'WATER_TANK', label: 'Water Tank' },
+                { id: '60SEC', label: '60 วิ' }
             ];
 
             // Filter logic - Suffix Based (1-7, 8-13)
@@ -556,6 +615,8 @@
                             isSimulation={dataMode === 'SIMULATION'}
                             realData={waterTankData}
                         />
+                    ) : activeTab === '60SEC' ? (
+                        <SixtySecondsView machines={machines} />
                     ) : (
                         <div className="machine-list">
                             {filteredMachines.map(machine => (
