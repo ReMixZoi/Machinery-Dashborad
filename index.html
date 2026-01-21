@@ -354,7 +354,7 @@
             );
         };
 
-        const SixtySecondsView = ({ machines }) => {
+        const SixtySecondsView = ({ machines, utilities }) => {
             const [selectedId, setSelectedId] = useState(null);
             const [history, setHistory] = useState({
                 labels: [],
@@ -389,18 +389,27 @@
                 const now = new Date().toLocaleTimeString('en-GB');
                 let label = now;
 
-                // Use machine timestamp if available (from Google Sheets or Node-RED)
-                if (machine.timestamp) {
+                // Prioritize Utilities timestamp if available (since it updates every second)
+                const sourceTimestamp = utilities?.timestamp ?? machine?.timestamp;
+
+                if (sourceTimestamp) {
                     // Try to parse '20/1/2026, 12:56:10' or just '12:56:10'
-                    if (machine.timestamp.includes(',')) {
-                        label = machine.timestamp.split(',')[1].trim();
-                    } else if (machine.timestamp.includes('T')) {
+                    if (sourceTimestamp.includes(',')) {
+                        label = sourceTimestamp.split(',')[1].trim();
+                    } else if (sourceTimestamp.includes('T')) {
                         // ISO format
                         try {
-                            label = new Date(machine.timestamp).toLocaleTimeString('en-GB');
-                        } catch (e) { label = machine.timestamp; }
+                            label = new Date(sourceTimestamp).toLocaleTimeString('en-GB');
+                        } catch (e) { label = sourceTimestamp; }
                     } else {
-                        label = machine.timestamp; // Assume it's already a time string or we want to show it as is
+                        // Check if it's a full date string like "21/1/2569 8:09:27" (Thai year) or just time
+                        // If it has spaces, take the last part
+                        if (sourceTimestamp.includes(' ')) {
+                            const parts = sourceTimestamp.split(' ');
+                            label = parts[parts.length - 1];
+                        } else {
+                            label = sourceTimestamp;
+                        }
                     }
                 }
 
@@ -418,23 +427,39 @@
 
                     const newLabels = [...prev.labels, label].slice(-60); // Keep last 60 points
 
-                    // Map incoming machine keys (handling potential UPPERCASE from Sheets or lowercase from sim)
-                    // Note: 'water' collision - in mock it is water pressure, in WaterMonitor it is tank level?
-                    // As per chart request: Utilities Pressure & Flow -> Water.
+                    // Map incoming data - prioritize 'utilities' object if available
+                    // logic: utilities.STEAM ?? utilities.steam ?? machine.STEAM ?? machine.steam
+
+                    const getVal = (key) => {
+                        const upper = key.toUpperCase();
+                        const lower = key.toLowerCase();
+
+                        // Try utilities first
+                        if (utilities) {
+                            if (utilities[upper] !== undefined) return val(utilities[upper], 0);
+                            if (utilities[lower] !== undefined) return val(utilities[lower], 0);
+                        }
+                        // Fallback to machine
+                        if (machine) {
+                            if (machine[upper] !== undefined) return val(machine[upper], 0);
+                            if (machine[lower] !== undefined) return val(machine[lower], 0);
+                        }
+                        return 0;
+                    };
 
                     return {
                         labels: newLabels,
-                        steam: [...prev.steam, val(machine.STEAM ?? machine.steam, 0)].slice(-60),
-                        air: [...prev.air, val(machine.AIR ?? machine.air, 0)].slice(-60),
-                        water: [...prev.water, val(machine.WATER ?? machine.water, 0)].slice(-60),
-                        vac: [...prev.vac, val(machine.VAC ?? machine.vac, 0)].slice(-60),
-                        tempRT100: [...prev.tempRT100, val(machine.TEMP_RT100 ?? machine.tempRT100, 0)].slice(-60),
-                        tempRT200: [...prev.tempRT200, val(machine.TEMP_RT200 ?? machine.tempRT200, 0)].slice(-60),
-                        tempHotWater: [...prev.tempHotWater, val(machine.TEMP_HOT_WATER ?? machine.tempHotWater, 0)].slice(-60),
-                        tempMix: [...prev.tempMix, val(machine.TEMP_MIX ?? machine.tempMix, 0)].slice(-60)
+                        steam: [...prev.steam, getVal('steam')].slice(-60),
+                        air: [...prev.air, getVal('air')].slice(-60),
+                        water: [...prev.water, getVal('water')].slice(-60),
+                        vac: [...prev.vac, getVal('vac')].slice(-60),
+                        tempRT100: [...prev.tempRT100, getVal('temp_rt100')].slice(-60), // Note: handle specific keys carefully
+                        tempRT200: [...prev.tempRT200, getVal('temp_rt200')].slice(-60),
+                        tempHotWater: [...prev.tempHotWater, getVal('temp_hot_water')].slice(-60),
+                        tempMix: [...prev.tempMix, getVal('temp_mix')].slice(-60)
                     };
                 });
-            }, [machines, selectedId]);
+            }, [machines, selectedId, utilities]);
 
             if (selectedId) {
                 const machine = machines.find(m => m.id === selectedId);
@@ -527,6 +552,7 @@
             const [status, setStatus] = useState('Initializing...');
             const [machines, setMachines] = useState([]);
             const [waterTankData, setWaterTankData] = useState(null);
+            const [utilities, setUtilities] = useState(null);
             const [activeTab, setActiveTab] = useState('ALL');
             const [viewMode, setViewMode] = useState('CYCLE'); // 'CYCLE' or 'ENERGY'
 
@@ -649,6 +675,9 @@
                         if (data && data.waterTank) {
                             setWaterTankData(data.waterTank);
                             setStatus('Connected (Google Sheets)');
+                        }
+                        if (data && data.utilities) {
+                            setUtilities(data.utilities);
                         }
                         if (data && data.machines && Array.isArray(data.machines) && data.machines.length > 0) {
                             setMachines(prev => {
@@ -804,7 +833,7 @@
                             realData={waterTankData}
                         />
                     ) : activeTab === '60SEC' ? (
-                        <SixtySecondsView machines={machines} />
+                        <SixtySecondsView machines={machines} utilities={utilities} />
                     ) : (
                         <div className="machine-list">
                             {filteredMachines.map(machine => (
