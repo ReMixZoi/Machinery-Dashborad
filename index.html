@@ -135,14 +135,27 @@
             );
         };
 
-
+        // Default Google Sheets URL
+        const DEFAULT_GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwaxSSrSiftaqOQjxaf7SnrXhTC2Y-AfhgqHExAbmzhtBNjmiS9woGSbhkzO_Hd4Ubc/exec';
 
         const WaterMonitor = ({ machines, isSimulation, realData }) => {
             const [localLevel, setLocalLevel] = useState(75); // Always stored as percentage (0-100)
             const [localRaw, setLocalRaw] = useState(0);      // Raw value (e.g. 0-8700)
-            const [localFlow, setLocalFlow] = useState(45.2);
-            const [localTemp, setLocalTemp] = useState(28.5);
+            const [localFlow, setLocalFlow] = useState(0);
+            const [localTemp, setLocalTemp] = useState(0);
             const [maxCapacity, setMaxCapacity] = useState(8700);
+            const [googleSheetsUrl, setGoogleSheetsUrl] = useState(() => {
+                const storedUrl = localStorage.getItem('googleSheetsUrl');
+                return storedUrl || DEFAULT_GOOGLE_SHEETS_URL;
+            });
+
+            // Sync localStorage if the default URL changes (e.g., during development or initial setup)
+            useEffect(() => {
+                if (googleSheetsUrl === DEFAULT_GOOGLE_SHEETS_URL && localStorage.getItem('googleSheetsUrl') !== DEFAULT_GOOGLE_SHEETS_URL) {
+                    localStorage.setItem('googleSheetsUrl', DEFAULT_GOOGLE_SHEETS_URL);
+                }
+            }, [googleSheetsUrl]);
+
 
             useEffect(() => {
                 if (realData) {
@@ -354,18 +367,43 @@
             );
         };
 
+        // --- Hook for LocalStorage Persistence ---
+        const useStickyState = (defaultValue, key) => {
+            const [value, setValue] = useState(() => {
+                const stickyValue = window.localStorage.getItem(key);
+                return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+            });
+            useEffect(() => {
+                window.localStorage.setItem(key, JSON.stringify(value));
+            }, [key, value]);
+            return [value, setValue];
+        };
+
         const SixtySecondsView = ({ machines, utilities }) => {
-            const [selectedId, setSelectedId] = useState(null);
-            const [history, setHistory] = useState({
-                labels: [],
-                steam: [],
-                air: [],
-                water: [],
-                vac: [],
-                tempRT100: [],
-                tempRT200: [],
-                tempHotWater: [],
-                tempMix: []
+            const [selectedId, setSelectedId] = useStickyState(null, 'app_60sec_selectedMachine');
+            const [history, setHistory] = useState(() => {
+                // Try to initialize from global pre-fetched history if available
+                const initialHistory = window.app_utilitiesHistory || [];
+                if (initialHistory.length > 0) {
+                    const formatLabel = (ts) => {
+                        try { return new Date(ts).toLocaleTimeString('en-GB'); } catch (e) { return ts; }
+                    };
+                    return {
+                        labels: initialHistory.map(h => formatLabel(h.timestamp)),
+                        steam: initialHistory.map(h => h.steam),
+                        air: initialHistory.map(h => h.air),
+                        water: initialHistory.map(h => h.water),
+                        vac: initialHistory.map(h => h.vac),
+                        tempRT100: initialHistory.map(h => h.temp_rt100),
+                        tempRT200: initialHistory.map(h => h.temp_rt200),
+                        tempHotWater: initialHistory.map(h => h.temp_hot_water),
+                        tempMix: initialHistory.map(h => h.temp_mix)
+                    };
+                }
+                return {
+                    labels: [], steam: [], air: [], water: [], vac: [],
+                    tempRT100: [], tempRT200: [], tempHotWater: [], tempMix: []
+                };
             });
 
             // Helper to extract suffix for sorting/display
@@ -539,13 +577,24 @@
 
         const App = () => {
             // Settings State
-            const [mqttSettings, setMqttSettings] = useState({
+            const [mqttSettings, setMqttSettings] = useStickyState({
                 host: 'wss://broker.emqx.io:8084/mqtt',
                 topic: 'production_monitor/machines/data',
-            });
-            const [httpUrl, setHttpUrl] = useState('http://192.168.7.86:1880/machines');
-            const [googleSheetsUrl, setGoogleSheetsUrl] = useState('https://script.google.com/macros/s/AKfycbwaxSSrSiftaqOQjxaf7SnrXhTC2Y-AfhgqHExAbmzhtBNjmiS9woGSbhkzO_Hd4Ubc/exec');
-            const [dataMode, setDataMode] = useState('GOOGLE_SHEETS'); // 'SIMULATION', 'MQTT', 'HTTP', 'GOOGLE_SHEETS'
+            }, 'app_mqttSettings');
+            const [httpUrl, setHttpUrl] = useStickyState('http://192.168.7.58:1880/machines', 'app_httpUrl');
+            const defaultSheetsUrl = 'https://script.google.com/macros/s/AKfycbwaxSSrSiftaqOQjxaf7SnrXhTC2Y-AfhgqHExAbmzhtBNjmiS9woGSbhkzO_Hd4Ubc/exec';
+            const [googleSheetsUrl, setGoogleSheetsUrl] = useStickyState(defaultSheetsUrl, 'app_googleSheetsUrl');
+
+            // Force update URL if the hardcoded default in script has changed
+            useEffect(() => {
+                const storedUrl = window.localStorage.getItem('app_googleSheetsUrl');
+                if (storedUrl && JSON.parse(storedUrl) !== defaultSheetsUrl) {
+                    console.log("Updating Google Sheets URL to latest default...");
+                    setGoogleSheetsUrl(defaultSheetsUrl);
+                }
+            }, []);
+
+            const [dataMode, setDataMode] = useStickyState('GOOGLE_SHEETS', 'app_dataMode'); // 'SIMULATION', 'MQTT', 'HTTP', 'GOOGLE_SHEETS'
             const [showSettings, setShowSettings] = useState(false);
 
             // Data State
@@ -553,8 +602,8 @@
             const [machines, setMachines] = useState([]);
             const [waterTankData, setWaterTankData] = useState(null);
             const [utilities, setUtilities] = useState(null);
-            const [activeTab, setActiveTab] = useState('ALL');
-            const [viewMode, setViewMode] = useState('CYCLE'); // 'CYCLE' or 'ENERGY'
+            const [activeTab, setActiveTab] = useStickyState('ALL', 'app_activeTab');
+            const [viewMode, setViewMode] = useStickyState('CYCLE', 'app_viewMode'); // 'CYCLE' or 'ENERGY'
 
             // Categories Configuration
             const categories = [
@@ -678,6 +727,10 @@
                         }
                         if (data && data.utilities) {
                             setUtilities(data.utilities);
+                        }
+                        // Handle pre-populated history for charts
+                        if (data && data.utilitiesHistory && Array.isArray(data.utilitiesHistory)) {
+                            window.app_utilitiesHistory = data.utilitiesHistory;
                         }
                         if (data && data.machines && Array.isArray(data.machines) && data.machines.length > 0) {
                             setMachines(prev => {
@@ -894,4 +947,3 @@
 
 
 </html>
-
